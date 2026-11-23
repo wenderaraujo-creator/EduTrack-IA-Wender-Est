@@ -183,16 +183,77 @@ def secret(name):
         return ""
 
 
+def xano_send_verification_code(base_url, email):
+    body = json.dumps({"email": email.strip().lower()}).encode("utf-8")
+    request = urllib.request.Request(
+        f"{base_url}/auth/send-verification-code",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return True, json.load(response)
+    except urllib.error.HTTPError as err:
+        try:
+            err_data = json.loads(err.read().decode("utf-8"))
+            msg = err_data.get("message") or err_data.get("error") or f"Erro {err.code}"
+        except Exception:
+            msg = f"Erro {err.code}: {err.reason}"
+        return False, msg
+    except Exception as exc:
+        return False, str(exc)
+
+
+def xano_signup(base_url, name, email, password, verification_code):
+    body = json.dumps(
+        {
+            "name": name.strip(),
+            "email": email.strip().lower(),
+            "password": password,
+            "verification_code": verification_code.strip(),
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        f"{base_url}/auth/signup",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return True, json.load(response)
+    except urllib.error.HTTPError as err:
+        try:
+            err_data = json.loads(err.read().decode("utf-8"))
+            msg = err_data.get("message") or err_data.get("error") or f"Erro {err.code}"
+        except Exception:
+            msg = f"Erro {err.code}: {err.reason}"
+        return False, msg
+    except Exception as exc:
+        return False, str(exc)
+
+
 def xano_login(base_url, email, password):
-    body = json.dumps({"email": email, "password": password}).encode("utf-8")
+    body = json.dumps({"email": email.strip().lower(), "password": password}).encode("utf-8")
     request = urllib.request.Request(
         f"{base_url}/auth/login",
         data=body,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=15) as response:
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return True, json.load(response)
+    except urllib.error.HTTPError as err:
+        try:
+            err_data = json.loads(err.read().decode("utf-8"))
+            msg = err_data.get("message") or err_data.get("error") or "Credenciais inválidas no Xano."
+        except Exception:
+            msg = f"Erro {err.code}: {err.reason}"
+        return False, msg
+    except Exception as exc:
+        return False, str(exc)
 
 
 def xano_search(base_url, token, query, overdue):
@@ -231,28 +292,61 @@ st.set_page_config(
     page_title="EduTrack AI", page_icon=None, layout="wide", initial_sidebar_state="expanded"
 )
 
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+THEME = {
+    "bg": "#FFFFFF",
+    "surface": "#F7F4F3",
+    "border": "#EADFDC",
+    "text": "#1A1312",
+    "muted": "#7B6A67",
+    "heading": "#8B0012",
+    "primary": "#C1121F",
+    "sidebar": "#8B0012",
+    "sidebar_text": "#FFFFFF",
+    "sidebar_button_bg": "#FFFFFF",
+    "sidebar_button_text": "#8B0012",
+} if not st.session_state.dark_mode else {
+    "bg": "#0A0A0A",
+    "surface": "#16181C",
+    "border": "#2A2D33",
+    "text": "#F2F3F5",
+    "muted": "#9AA0A6",
+    "heading": "#FF1E3C",
+    "primary": "#FF1E3C",
+    "sidebar": "#101215",
+    "sidebar_text": "#F2F3F5",
+    "sidebar_button_bg": "#E10600",
+    "sidebar_button_text": "#FFFFFF",
+}
+
 st.markdown(
-    """
+    f"""
 <style>
-  [data-testid="stAppViewContainer"] { background: #FFFFFF; }
-  [data-testid="stSidebar"] { background: #8B0012; }
-  [data-testid="stSidebar"] * { color: #FFFFFF !important; }
-  [data-testid="stSidebar"] button { background-color: #FFFFFF !important; color: #8B0012 !important; }
-  h1, h2, h3, h4 { color: #8B0012 !important; }
-  label, [data-testid="stWidgetLabel"] p { color: #1A1312 !important; font-weight: 600; }
-  input, textarea, select { color: #1A1312 !important; background-color: #FFFFFF !important; border: 1px solid #8B0012 !important; border-radius: 8px !important; }
+  [data-testid="stAppViewContainer"] {{ background: {THEME["bg"]}; }}
+  [data-testid="stSidebar"] {{ background: {THEME["sidebar"]}; }}
+  [data-testid="stSidebar"] * {{ color: {THEME["sidebar_text"]} !important; }}
+  [data-testid="stSidebar"] button {{ background-color: {THEME["sidebar_button_bg"]} !important; color: {THEME["sidebar_button_text"]} !important; }}
+  [data-testid="stSidebarCollapseButton"] button,
+  [data-testid="stExpandSidebarButton"] button {{ background: transparent !important; border: none !important; font-size: 0 !important; }}
+  [data-testid="stSidebarCollapseButton"] button::after {{ content: "«"; font-size: 22px; color: {THEME["sidebar_text"]}; }}
+  [data-testid="stExpandSidebarButton"] button::after {{ content: "»"; font-size: 22px; color: {THEME["muted"]}; }}
+  h1, h2, h3, h4 {{ color: {THEME["heading"]} !important; }}
+  label, [data-testid="stWidgetLabel"] p {{ color: {THEME["text"]} !important; font-weight: 600; }}
+  input, textarea, select {{ color: {THEME["text"]} !important; background-color: {THEME["bg"]} !important; border: 1px solid {THEME["heading"]} !important; border-radius: 8px !important; }}
   [data-testid="stTextInput"] > div,
   [data-testid="stNumberInput"] > div,
   [data-testid="stDateInput"] > div,
-  [data-testid="stSelectbox"] > div { border-radius: 8px !important; }
-  input::placeholder, textarea::placeholder { color: #7B6A67 !important; }
-  [data-testid="stTabs"] [role="tab"] { color: #1A1312 !important; font-weight: 600; border-radius: 8px 8px 0 0 !important; }
-  [data-testid="stTabs"] [aria-selected="true"] { color: #8B0012 !important; border-color: #C1121F !important; }
-  div[data-testid="stMetricValue"] { color: #C1121F !important; }
+  [data-testid="stSelectbox"] > div {{ border-radius: 8px !important; }}
+  input::placeholder, textarea::placeholder {{ color: {THEME["muted"]} !important; }}
+  [data-testid="stTabs"] [role="tab"] {{ color: {THEME["text"]} !important; font-weight: 600; border-radius: 8px 8px 0 0 !important; }}
+  [data-testid="stTabs"] [aria-selected="true"] {{ color: {THEME["heading"]} !important; border-color: {THEME["primary"]} !important; }}
+  div[data-testid="stMetricValue"] {{ color: {THEME["primary"]} !important; }}
   div[data-testid="stFormSubmitButton"] button,
-  div[data-testid="stButton"] button { background-color: #C1121F !important; color: #FFFFFF !important; border: 1px solid #8B0012 !important; border-radius: 8px !important; }
-  [data-testid="stContainer"] { border-radius: 12px !important; overflow: hidden; }
-  div[data-testid="stAlert"] { color: #1A1312 !important; border-radius: 8px !important; }
+  div[data-testid="stButton"] button {{ background-color: {THEME["primary"]} !important; color: #FFFFFF !important; border: 1px solid {THEME["heading"]} !important; border-radius: 8px !important; }}
+  [data-testid="stContainer"] {{ background-color: {THEME["surface"]} !important; border: 1px solid {THEME["border"]} !important; border-radius: 12px !important; overflow: hidden; }}
+  div[data-testid="stAlert"] {{ color: {THEME["text"]} !important; border-radius: 8px !important; }}
 </style>
 """,
     unsafe_allow_html=True,
@@ -279,56 +373,213 @@ export default function(component) {
 }
 """
 
-fix_password_tabs = st.components.v2.component(
-    "edutrack_password_tab_fix",
-    js=PASSWORD_TAB_JS,
-)
+@st.cache_resource
+def get_password_tab_component():
+    return st.components.v2.component(
+        "edutrack_password_tab_fix",
+        js=PASSWORD_TAB_JS,
+    )
+
+
+fix_password_tabs = get_password_tab_component()
 fix_password_tabs(key="edutrack_password_tab_fix", height=0)
+
+LOGIN_SUGGEST_JS = """
+export default function(component) {
+  const KEY = 'edutrack_saved_logins';
+
+  const read = () => {
+    try {
+      const value = JSON.parse(localStorage.getItem(KEY) || '[]');
+      return Array.isArray(value) ? value : [];
+    } catch (error) {
+      return [];
+    }
+  };
+
+  const write = (values) => localStorage.setItem(KEY, JSON.stringify(values));
+
+  if (component.data && component.data.save) {
+    const values = read();
+    if (!values.includes(component.data.save)) {
+      values.push(component.data.save);
+      write(values.slice(-10));
+    }
+    component.setTriggerValue('saved', component.data.save);
+  }
+
+  let observer = window.__edutrackLoginObserver;
+
+  const apply = () => {
+    if (observer) observer.disconnect();
+
+    const values = read();
+    let datalist = document.getElementById('edutrack-login-emails');
+    if (!datalist) {
+      datalist = document.createElement('datalist');
+      datalist.id = 'edutrack-login-emails';
+      document.body.appendChild(datalist);
+    }
+    datalist.innerHTML = '';
+    values.forEach((value) => {
+      const option = document.createElement('option');
+      option.value = value;
+      datalist.appendChild(option);
+    });
+
+    document.querySelectorAll('input[type="text"]').forEach((input) => {
+      const form = input.closest('[data-testid="stForm"]');
+      if (!form) return;
+      const passwords = form.querySelectorAll('input[type="password"]');
+      if (passwords.length !== 1) return;
+      input.setAttribute('list', 'edutrack-login-emails');
+      input.setAttribute('autocomplete', 'off');
+    });
+
+    document.querySelectorAll('input[type="password"]').forEach((input) => {
+      input.setAttribute('autocomplete', 'new-password');
+      input.setAttribute('data-lpignore', 'true');
+      input.setAttribute('data-1p-ignore', 'true');
+    });
+
+    if (observer) observer.observe(document.body, { childList: true, subtree: true });
+  };
+
+  apply();
+  if (!observer) {
+    observer = new MutationObserver(apply);
+    window.__edutrackLoginObserver = observer;
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+}
+"""
+
+def clear_pending_saved_login():
+    st.session_state.pending_saved_login = ""
+
+
+@st.cache_resource
+def get_login_suggestions_component():
+    return st.components.v2.component(
+        "edutrack_login_suggestions",
+        js=LOGIN_SUGGEST_JS,
+    )
+
+
+login_suggestions = get_login_suggestions_component()
+login_suggestions(
+    data={"save": st.session_state.get("pending_saved_login", "")},
+    on_saved_change=clear_pending_saved_login,
+    key="edutrack_login_suggestions",
+    height=0,
+)
 
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
 if "username" not in st.session_state:
     st.session_state.username = ""
+if "pending_saved_login" not in st.session_state:
+    st.session_state.pending_saved_login = ""
 
 st.sidebar.title("EduTrack AI")
 st.sidebar.caption("Gestão acadêmica · uso local")
+st.sidebar.toggle("Modo escuro", key="dark_mode")
 
 if st.session_state.user_id is None:
     st.title("Acesso ao EduTrack AI")
-    st.caption("Crie sua conta ou entre para cadastrar disciplinas, tarefas e acompanhar gráficos.")
-    login_tab, register_tab = st.tabs(["Entrar", "Criar conta"])
+    st.caption("Crie sua conta com verificação por e-mail ou entre para cadastrar disciplinas e tarefas no Xano.")
+    login_tab, register_tab = st.tabs(["Entrar", "Criar conta (com verificação por e-mail)"])
 
     with login_tab:
         with st.form("login_form"):
-            login_username = st.text_input("Usuário")
+            login_username = st.text_input("E-mail ou Usuário")
             login_password = st.text_input("Senha", type="password")
             if st.form_submit_button("Entrar"):
-                account = find_user(login_username)
-                if account and verify_password(login_password, account["password_hash"]):
-                    st.session_state.user_id = account["id"]
-                    st.session_state.username = account["username"]
+                # Tenta autenticar no backend Xano primeiro
+                ok, res = xano_login(BASE_URL, login_username, login_password)
+                if ok and isinstance(res, dict) and "authToken" in res:
+                    st.session_state.auth_token = res["authToken"]
+                    # Sincroniza conta no cache SQLite local para compatibilidade
+                    local_acc = find_user(login_username)
+                    if not local_acc:
+                        uid = create_user(login_username, login_password)
+                    else:
+                        uid = local_acc["id"]
+                    st.session_state.user_id = uid
+                    st.session_state.username = login_username.strip().lower()
+                    st.session_state.pending_saved_login = login_username.strip().lower()
                     st.rerun()
                 else:
-                    st.error("Usuário ou senha inválidos.")
+                    # Fallback local se o Xano ainda não foi atualizado ou offline
+                    account = find_user(login_username)
+                    if account and verify_password(login_password, account["password_hash"]):
+                        st.session_state.user_id = account["id"]
+                        st.session_state.username = account["username"]
+                        st.session_state.pending_saved_login = account["username"]
+                        st.rerun()
+                    else:
+                        err_msg = res if not ok else "Usuário ou senha inválidos."
+                        st.error(f"Falha no login: {err_msg}")
 
     with register_tab:
+        st.markdown("#### 1. Verificação de E-mail")
+        email_col1, email_col2 = st.columns([3, 1])
+        with email_col1:
+            verify_email = st.text_input("E-mail para cadastro", key="reg_email_input")
+        with email_col2:
+            st.write("")
+            st.write("")
+            send_code_btn = st.button("Enviar código", key="btn_send_code")
+
+        if send_code_btn:
+            if "@" not in verify_email or "." not in verify_email:
+                st.error("Informe um e-mail válido para receber o código.")
+            else:
+                ok, res = xano_send_verification_code(BASE_URL, verify_email)
+                if ok:
+                    st.session_state.verify_email_sent = verify_email.strip().lower()
+                    code_info = f" (Código gerado: **{res.get('code')}**)" if isinstance(res, dict) and res.get("code") else ""
+                    st.success(f"Código de verificação enviado para {verify_email}!{code_info}")
+                else:
+                    dev_code = str(secrets.randbelow(900000) + 100000)
+                    st.session_state.dev_verification_code = dev_code
+                    st.session_state.verify_email_sent = verify_email.strip().lower()
+                    st.info(f"Modo Dev/Simulação (Xano pendente de push): Código gerado: **{dev_code}**")
+
+        st.markdown("#### 2. Dados da Conta e Confirmação do Código")
         with st.form("register_form"):
-            new_username = st.text_input("Novo usuário")
-            new_password = st.text_input("Nova senha", type="password")
+            new_name = st.text_input("Nome completo")
+            new_code = st.text_input("Código de verificação (6 dígitos)")
+            new_password = st.text_input("Nova senha (mínimo 8 caracteres)", type="password")
             confirm_password = st.text_input("Confirmar senha", type="password")
-            if st.form_submit_button("Cadastrar"):
-                if len(new_username.strip()) < 3:
-                    st.error("Use pelo menos 3 caracteres no usuário.")
-                elif len(new_password) < 6:
-                    st.error("Use pelo menos 6 caracteres na senha.")
+
+            if st.form_submit_button("Cadastrar no Xano"):
+                target_email = st.session_state.get("verify_email_sent") or verify_email.strip().lower()
+                if not target_email or "@" not in target_email:
+                    st.error("Informe o e-mail e clique em 'Enviar código' primeiro.")
+                elif len(new_code.strip()) != 6:
+                    st.error("O código de verificação deve ter exatamente 6 dígitos.")
+                elif len(new_name.strip()) < 2:
+                    st.error("Informe seu nome completo.")
+                elif len(new_password) < 8:
+                    st.error("A senha deve ter pelo menos 8 caracteres (requisito do Xano).")
                 elif new_password != confirm_password:
                     st.error("As senhas não conferem.")
                 else:
-                    new_id = create_user(new_username, new_password)
-                    if new_id:
-                        st.success("Conta criada. Faça login na aba Entrar.")
+                    ok, res = xano_signup(BASE_URL, new_name, target_email, new_password, new_code)
+                    if ok and isinstance(res, dict) and "authToken" in res:
+                        st.session_state.auth_token = res["authToken"]
+                        local_id = create_user(target_email, new_password)
+                        st.session_state.pending_saved_login = target_email
+                        st.success("Conta criada e verificada com sucesso no Xano! Faça login na aba Entrar.")
                     else:
-                        st.error("Esse usuário já existe.")
+                        dev_code = st.session_state.get("dev_verification_code")
+                        if dev_code and new_code.strip() == dev_code:
+                            local_id = create_user(target_email, new_password)
+                            st.session_state.pending_saved_login = target_email
+                            st.success("Conta criada com código verificado! (Lembre-se de rodar xano workspace push para habilitar no Xano remoto).")
+                        else:
+                            st.error(f"Erro na criação da conta: {res}")
     st.stop()
 
 user_id = st.session_state.user_id
@@ -347,9 +598,9 @@ if not get_welcome_seen(user_id):
     safe_username = html.escape(st.session_state.username)
     st.markdown(
         f"""
-<div style="background:#8B0012;color:#FFFFFF;padding:32px;border-radius:16px;margin-bottom:24px;">
-  <h1 style="color:#FFFFFF;margin:10px 0 8px;">Bem-vindo, {safe_username}!</h1>
-  <p style="color:#FFFFFF;margin:0;max-width:720px;">Sua conta foi criada com sucesso. A partir de agora, seus dados ficam salvos neste dispositivo e você pode começar a organizar seus estudos.</p>
+<div style="background:{THEME["sidebar"]};color:{THEME["sidebar_text"]};padding:32px;border-radius:16px;margin-bottom:24px;">
+  <h1 style="color:{THEME["sidebar_text"]};margin:10px 0 8px;">Bem-vindo, {safe_username}!</h1>
+  <p style="color:{THEME["sidebar_text"]};margin:0;max-width:720px;">Sua conta foi criada com sucesso. A partir de agora, seus dados ficam salvos neste dispositivo e você pode começar a organizar seus estudos.</p>
 </div>
 """,
         unsafe_allow_html=True,
